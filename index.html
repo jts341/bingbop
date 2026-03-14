@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="System">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>The System</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --bg2: #111111;
+    --bg3: #1a1a1a;
+    --bg4: #222222;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #f0ece4;
+    --text2: #8a8680;
+    --text3: #555250;
+    --accent: #c8b89a;
+    --accent2: #8a7560;
+    --green: #4a9e75;
+    --green-dim: rgba(74,158,117,0.15);
+    --red: #c45a5a;
+    --red-dim: rgba(196,90,90,0.12);
+    --gold: #c8a84a;
+    --gold-dim: rgba(200,168,74,0.12);
+    --blue: #5a8ac4;
+    --blue-dim: rgba(90,138,196,0.12);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --mono: 'DM Mono', monospace;
+    --serif: 'DM Serif Display', serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--mono); }
+
+  /* Layout */
+  #app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+  #header { padding: 16px 20px 12px; border-bottom: 0.5px solid var(--border); flex-shrink: 0; display: flex; align-items: flex-end; justify-content: space-between; }
+  #header-left h1 { font-family: var(--serif); font-size: 22px; font-weight: 400; color: var(--text); letter-spacing: -0.3px; }
+  #header-left p { font-size: 11px; color: var(--text3); margin-top: 2px; letter-spacing: 0.05em; text-transform: uppercase; }
+  #streak-badge { background: var(--green-dim); border: 0.5px solid var(--green); border-radius: 20px; padding: 4px 12px; font-size: 12px; color: var(--green); }
+  #content { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 80px; }
+  #nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg); border-top: 0.5px solid var(--border); display: flex; padding: 8px 4px; padding-bottom: max(8px, env(safe-area-inset-bottom)); z-index: 100; }
+  .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 4px; border-radius: var(--radius-sm); cursor: pointer; transition: background 0.15s; border: none; background: transparent; color: var(--text3); }
+  .nav-item.active { color: var(--accent); }
+  .nav-item svg { width: 20px; height: 20px; }
+  .nav-item span { font-size: 10px; letter-spacing: 0.04em; }
+
+  /* Sections */
+  .section { display: none; padding: 16px 16px 0; animation: fadeIn 0.2s ease; }
+  .section.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Cards */
+  .card { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+  .card-title { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; }
+
+  /* Metrics row */
+  .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+  .metric { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 12px; }
+  .metric-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+  .metric-value { font-family: var(--serif); font-size: 26px; color: var(--text); line-height: 1; }
+  .metric-unit { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+  /* Tracker grid */
+  .tracker-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; }
+  .day-box { aspect-ratio: 1; border-radius: 6px; border: 0.5px solid var(--border2); display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--text3); cursor: pointer; transition: all 0.12s; user-select: none; }
+  .day-box.done { background: var(--green); border-color: var(--green); color: #fff; font-size: 0; }
+  .day-box.done::after { content: '✓'; font-size: 10px; }
+  .day-box.missed { background: var(--red-dim); border-color: var(--red); color: var(--red); }
+  .day-box.today { border-color: var(--accent); border-width: 1.5px; color: var(--accent); }
+  .tracker-legend { display: flex; gap: 16px; margin-top: 12px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text3); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+  /* Checklist */
+  .check-item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 0.5px solid var(--border); cursor: pointer; }
+  .check-item:last-child { border-bottom: none; }
+  .check-box { width: 20px; height: 20px; border-radius: 6px; border: 0.5px solid var(--border2); flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.15s; margin-top: 1px; }
+  .check-box.checked { background: var(--green); border-color: var(--green); }
+  .check-text { font-size: 13px; color: var(--text); line-height: 1.5; transition: color 0.15s; }
+  .check-text.done { color: var(--text3); text-decoration: line-through; }
+  .check-tag { font-size: 10px; color: var(--text3); margin-top: 2px; letter-spacing: 0.04em; }
+
+  /* Schedule rows */
+  .sched-row { display: flex; gap: 12px; padding: 10px 0; border-bottom: 0.5px solid var(--border); }
+  .sched-row:last-child { border-bottom: none; }
+  .sched-time { font-size: 11px; color: var(--text3); min-width: 48px; padding-top: 2px; flex-shrink: 0; }
+  .sched-dot { width: 6px; height: 6px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+  .sched-content { flex: 1; }
+  .sched-title { font-size: 13px; color: var(--text); font-weight: 500; }
+  .sched-sub { font-size: 12px; color: var(--text2); margin-top: 2px; line-height: 1.5; }
+
+  /* Books */
+  .book-row { display: flex; gap: 12px; padding: 10px 0; border-bottom: 0.5px solid var(--border); align-items: flex-start; }
+  .book-row:last-child { border-bottom: none; }
+  .book-spine { width: 6px; border-radius: 3px; align-self: stretch; min-height: 36px; flex-shrink: 0; }
+  .book-title { font-size: 13px; color: var(--text); }
+  .book-author { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .book-tag { display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 4px; margin-top: 5px; border: 0.5px solid; }
+  .progress-bar { height: 3px; background: var(--bg4); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 2px; }
+
+  /* Grocery */
+  .g-section-title { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; margin: 16px 0 8px; }
+  .g-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid var(--border); cursor: pointer; }
+  .g-row:last-child { border-bottom: none; }
+  .g-check { width: 18px; height: 18px; border-radius: 5px; border: 0.5px solid var(--border2); flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+  .g-check.checked { background: var(--green); border-color: var(--green); }
+  .g-name { font-size: 13px; color: var(--text); flex: 1; transition: color 0.15s; }
+  .g-name.done { color: var(--text3); text-decoration: line-through; }
+  .g-store { font-size: 10px; color: var(--text3); padding: 2px 6px; border: 0.5px solid var(--border); border-radius: 4px; }
+
+  /* Rules */
+  .rule-item { border-left: 2px solid; padding: 10px 14px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; margin-bottom: 8px; }
+  .rule-title { font-size: 13px; color: var(--text); margin-bottom: 4px; }
+  .rule-body { font-size: 12px; color: var(--text2); line-height: 1.6; }
+
+  /* Weekly audit */
+  .audit-q { padding: 12px 0; border-bottom: 0.5px solid var(--border); }
+  .audit-q:last-child { border-bottom: none; }
+  .audit-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+  .audit-prompt { font-size: 13px; color: var(--text2); margin-bottom: 8px; line-height: 1.5; }
+  .audit-input { width: 100%; background: var(--bg3); border: 0.5px solid var(--border2); border-radius: var(--radius-sm); padding: 10px 12px; color: var(--text); font-family: var(--mono); font-size: 13px; resize: none; outline: none; line-height: 1.6; }
+  .audit-input:focus { border-color: var(--accent2); }
+
+  /* Meals */
+  .meal-row { padding: 10px 0; border-bottom: 0.5px solid var(--border); }
+  .meal-row:last-child { border-bottom: none; }
+  .meal-time { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
+  .meal-name { font-size: 13px; color: var(--text); }
+  .meal-macros { font-size: 11px; color: var(--text2); margin-top: 3px; line-height: 1.5; }
+  .macro-pills { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+  .macro-pill { font-size: 10px; padding: 2px 7px; border-radius: 4px; }
+
+  /* Tabs within sections */
+  .tab-row { display: flex; gap: 4px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 2px; }
+  .tab-btn { padding: 5px 12px; font-size: 12px; border: 0.5px solid var(--border2); border-radius: 20px; background: transparent; color: var(--text3); cursor: pointer; white-space: nowrap; font-family: var(--mono); transition: all 0.15s; flex-shrink: 0; }
+  .tab-btn.active { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+
+  /* Gym split */
+  .gym-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 0.5px solid var(--border); }
+  .gym-row:last-child { border-bottom: none; }
+  .gym-day-label { font-size: 12px; color: var(--text3); min-width: 36px; }
+  .gym-split { font-size: 13px; color: var(--text); flex: 1; }
+  .gym-note { font-size: 11px; color: var(--text2); }
+  .gym-badge { font-size: 10px; padding: 2px 8px; border-radius: 4px; border: 0.5px solid; flex-shrink: 0; }
+
+  /* Scrollbar */
+  #content::-webkit-scrollbar { width: 0; }
+
+  /* Install prompt */
+  #install-banner { display: none; position: fixed; top: 0; left: 0; right: 0; background: var(--bg3); border-bottom: 0.5px solid var(--border2); padding: 12px 16px; z-index: 200; display: flex; align-items: center; gap: 12px; }
+  #install-banner p { font-size: 12px; color: var(--text2); flex: 1; line-height: 1.4; }
+  #install-btn { font-size: 12px; padding: 6px 14px; background: var(--accent); color: var(--bg); border: none; border-radius: var(--radius-sm); cursor: pointer; font-family: var(--mono); white-space: nowrap; }
+  #install-dismiss { font-size: 18px; color: var(--text3); background: none; border: none; cursor: pointer; padding: 0 4px; }
+
+  .section-subtitle { font-size: 12px; color: var(--text3); margin-bottom: 14px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <div id="header-left">
+      <h1>The System</h1>
+      <p id="header-date">Loading...</p>
+    </div>
+    <div id="streak-badge">— day streak</div>
+  </div>
+
+  <div id="content">
+
+    <!-- TRACKER -->
+    <div id="sec-tracker" class="section active">
+      <div class="metrics">
+        <div class="metric">
+          <div class="metric-label">Streak</div>
+          <div class="metric-value" id="m-streak">0</div>
+          <div class="metric-unit">days</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Pages</div>
+          <div class="metric-value" id="m-pages">30</div>
+          <div class="metric-unit">per day</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Next +5</div>
+          <div class="metric-value" id="m-next">10</div>
+          <div class="metric-unit">days away</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">75-day tracker</div>
+        <div class="tracker-grid" id="tracker-grid"></div>
+        <div class="tracker-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>Done</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--red);opacity:0.6"></div>Missed</div>
+          <div class="legend-item"><div class="legend-dot" style="border:1.5px solid var(--accent);background:transparent"></div>Today</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Today's non-negotiables</div>
+        <div id="checklist-items">
+          <div class="check-item" onclick="toggleCheck(this)">
+            <div class="check-box"></div>
+            <div><div class="check-text">Touch the main task first — before anything adjacent</div><div class="check-tag">Coach · procrastination rule</div></div>
+          </div>
+          <div class="check-item" onclick="toggleCheck(this)">
+            <div class="check-box"></div>
+            <div><div class="check-text">Reading block 1 — morning pages</div><div class="check-tag">Tracker · session 1</div></div>
+          </div>
+          <div class="check-item" onclick="toggleCheck(this)">
+            <div class="check-box"></div>
+            <div><div class="check-text">Gym session</div><div class="check-tag">Body</div></div>
+          </div>
+          <div class="check-item" onclick="toggleCheck(this)">
+            <div class="check-box"></div>
+            <div><div class="check-text">Eat breakfast before leaving home</div><div class="check-tag">Diet · biggest lever</div></div>
+          </div>
+          <div class="check-item" onclick="toggleCheck(this)">
+            <div class="check-box"></div>
+            <div><div class="check-text">Reading block 2 — evening pages</div><div class="check-tag">Tracker · session 2</div></div>
+          </div>
+          <div class="check-item" onclick="toggleCheck(this)">
+            <div class="check-box"></div>
+            <div><div class="check-text">Set up tomorrow's on-ramp — open doc, write next step</div><div class="check-tag">Coach · on-ramp rule</div></div>
+          </div>
+          <div class="check-item" onclick="toggleCheck(this)">
+            <div class="check-box"></div>
+            <div><div class="check-text">One social fingerprint today</div><div class="check-tag">Publicist · opinion / redirect / exit first</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCHEDULE -->
+    <div id="sec-schedule" class="section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <button onclick="schedNav(-1)" style="width:32px;height:32px;border-radius:50%;border:0.5px solid var(--border2);background:transparent;color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">‹</button>
+        <div style="text-align:center;">
+          <div id="sched-day-label" style="font-size:15px;font-weight:500;color:var(--text);"></div>
+          <div id="sched-date-label" style="font-size:11px;color:var(--text3);margin-top:1px;"></div>
+        </div>
+        <button onclick="schedNav(1)" style="width:32px;height:32px;border-radius:50%;border:0.5px solid var(--border2);background:transparent;color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">›</button>
+      </div>
+
+      <div id="sched-blocks" class="card" style="padding:12px;"></div>
+
+      <button onclick="showAddBlock()" style="width:100%;padding:11px;background:transparent;border:0.5px dashed var(--border2);border-radius:var(--radius-sm);color:var(--text3);font-family:var(--mono);font-size:12px;cursor:pointer;margin-bottom:12px;">+ add block to this day</button>
+
+      <div id="add-block-form" style="display:none;" class="card">
+        <div class="card-title">New block</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+          <div><div style="font-size:11px;color:var(--text3);margin-bottom:4px;">Start time</div><input id="nb-start" type="time" value="09:00" style="width:100%;background:var(--bg3);border:0.5px solid var(--border2);border-radius:var(--radius-sm);padding:7px 10px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;"></div>
+          <div><div style="font-size:11px;color:var(--text3);margin-bottom:4px;">End time</div><input id="nb-end" type="time" value="10:00" style="width:100%;background:var(--bg3);border:0.5px solid var(--border2);border-radius:var(--radius-sm);padding:7px 10px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;"></div>
+        </div>
+        <div style="margin-bottom:10px;"><div style="font-size:11px;color:var(--text3);margin-bottom:4px;">Title</div><input id="nb-title" type="text" placeholder="e.g. Economics lecture" style="width:100%;background:var(--bg3);border:0.5px solid var(--border2);border-radius:var(--radius-sm);padding:7px 10px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;"></div>
+        <div style="margin-bottom:12px;"><div style="font-size:11px;color:var(--text3);margin-bottom:4px;">Note (optional)</div><input id="nb-note" type="text" placeholder="e.g. H building, room 4.22" style="width:100%;background:var(--bg3);border:0.5px solid var(--border2);border-radius:var(--radius-sm);padding:7px 10px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;"></div>
+        <div style="margin-bottom:12px;">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">Colour</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;" id="nb-colors">
+            <div class="color-pick active" data-color="var(--accent)" onclick="pickColor(this)" style="width:22px;height:22px;border-radius:50%;background:var(--accent);cursor:pointer;border:2px solid white;"></div>
+            <div class="color-pick" data-color="var(--green)" onclick="pickColor(this)" style="width:22px;height:22px;border-radius:50%;background:var(--green);cursor:pointer;"></div>
+            <div class="color-pick" data-color="var(--blue)" onclick="pickColor(this)" style="width:22px;height:22px;border-radius:50%;background:var(--blue);cursor:pointer;"></div>
+            <div class="color-pick" data-color="var(--gold)" onclick="pickColor(this)" style="width:22px;height:22px;border-radius:50%;background:var(--gold);cursor:pointer;"></div>
+            <div class="color-pick" data-color="var(--red)" onclick="pickColor(this)" style="width:22px;height:22px;border-radius:50%;background:var(--red);cursor:pointer;"></div>
+            <div class="color-pick" data-color="var(--text3)" onclick="pickColor(this)" style="width:22px;height:22px;border-radius:50%;background:var(--text3);cursor:pointer;"></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="saveBlock()" style="flex:1;padding:10px;background:var(--accent);border:none;border-radius:var(--radius-sm);color:var(--bg);font-family:var(--mono);font-size:13px;cursor:pointer;">Save</button>
+          <button onclick="document.getElementById('add-block-form').style.display='none'" style="padding:10px 16px;background:transparent;border:0.5px solid var(--border2);border-radius:var(--radius-sm);color:var(--text3);font-family:var(--mono);font-size:13px;cursor:pointer;">Cancel</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:4px;">
+        <div class="card-title">Fixed daily blocks (from your system)</div>
+        <div class="sched-row"><div class="sched-time">08:00</div><div class="sched-dot" style="background:var(--blue)"></div><div class="sched-content"><div class="sched-title">Reading block 1 — 20 pages</div></div></div>
+        <div class="sched-row"><div class="sched-time">09:30</div><div class="sched-dot" style="background:var(--accent)"></div><div class="sched-content"><div class="sched-title">Library — deep work block 1</div></div></div>
+        <div class="sched-row"><div class="sched-time">12:00</div><div class="sched-dot" style="background:var(--gold)"></div><div class="sched-content"><div class="sched-title">Gym</div></div></div>
+        <div class="sched-row"><div class="sched-time">14:30</div><div class="sched-dot" style="background:var(--accent)"></div><div class="sched-content"><div class="sched-title">Deep work block 2</div></div></div>
+        <div class="sched-row"><div class="sched-time">20:00</div><div class="sched-dot" style="background:var(--blue)"></div><div class="sched-content"><div class="sched-title">Reading block 2 + evening audit</div></div></div>
+      </div>
+    </div>
+
+    <!-- BODY -->
+    <div id="sec-body" class="section">
+      <div class="tab-row">
+        <button class="tab-btn active" onclick="bodyTab('meals', this)">Meals</button>
+        <button class="tab-btn" onclick="bodyTab('gym', this)">Gym split</button>
+      </div>
+
+      <div id="body-meals">
+        <div class="card">
+          <div class="card-title">Daily meal plan — ~2,400 kcal / ~180g protein</div>
+          <div class="meal-row">
+            <div class="meal-time">Breakfast · 07:00</div>
+            <div class="meal-name">Scrambled eggs + oats + banana</div>
+            <div class="meal-macros">4 eggs · 80g oats · 1 banana</div>
+            <div class="macro-pills">
+              <span class="macro-pill" style="background:var(--red-dim);color:var(--red);border:0.5px solid var(--red)">650 kcal</span>
+              <span class="macro-pill" style="background:var(--green-dim);color:var(--green);border:0.5px solid var(--green)">38g protein</span>
+            </div>
+          </div>
+          <div class="meal-row">
+            <div class="meal-time">Lunch · post-gym</div>
+            <div class="meal-name">Chicken rice bowl + roasted veg</div>
+            <div class="meal-macros">200g chicken · 150g rice · mixed veg · olive oil</div>
+            <div class="macro-pills">
+              <span class="macro-pill" style="background:var(--red-dim);color:var(--red);border:0.5px solid var(--red)">720 kcal</span>
+              <span class="macro-pill" style="background:var(--green-dim);color:var(--green);border:0.5px solid var(--green)">55g protein</span>
+            </div>
+          </div>
+          <div class="meal-row">
+            <div class="meal-time">Snack · 16:00</div>
+            <div class="meal-name">Greek yogurt + mixed nuts</div>
+            <div class="meal-macros">200g yogurt · 30g nuts</div>
+            <div class="macro-pills">
+              <span class="macro-pill" style="background:var(--red-dim);color:var(--red);border:0.5px solid var(--red)">320 kcal</span>
+              <span class="macro-pill" style="background:var(--green-dim);color:var(--green);border:0.5px solid var(--green)">22g protein</span>
+            </div>
+          </div>
+          <div class="meal-row">
+            <div class="meal-time">Dinner · 19:00</div>
+            <div class="meal-name">Salmon / tuna + sweet potato + spinach</div>
+            <div class="meal-macros">200g fish · 200g sweet potato · spinach</div>
+            <div class="macro-pills">
+              <span class="macro-pill" style="background:var(--red-dim);color:var(--red);border:0.5px solid var(--red)">620 kcal</span>
+              <span class="macro-pill" style="background:var(--green-dim);color:var(--green);border:0.5px solid var(--green)">48g protein</span>
+            </div>
+          </div>
+          <div class="meal-row">
+            <div class="meal-time">Evening · optional</div>
+            <div class="meal-name">Cottage cheese or protein shake</div>
+            <div class="meal-macros">Only if under daily protein target</div>
+            <div class="macro-pills">
+              <span class="macro-pill" style="background:var(--red-dim);color:var(--red);border:0.5px solid var(--red)">~200 kcal</span>
+              <span class="macro-pill" style="background:var(--green-dim);color:var(--green);border:0.5px solid var(--green)">~25g protein</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="body-gym" style="display:none">
+        <div class="card">
+          <div class="card-title">Weekly split — 4–5 days</div>
+          <div class="gym-row"><div class="gym-day-label">Mon</div><div class="sched-dot" style="background:var(--blue)"></div><div style="flex:1"><div class="gym-split">Chest + triceps</div><div class="gym-note">Push day — candidate for 09:00 early session</div></div></div>
+          <div class="gym-row"><div class="gym-day-label">Tue</div><div class="sched-dot" style="background:var(--accent)"></div><div style="flex:1"><div class="gym-split">Back + biceps</div><div class="gym-note">Pull day</div></div></div>
+          <div class="gym-row"><div class="gym-day-label">Wed</div><div class="sched-dot" style="background:var(--text3)"></div><div style="flex:1"><div class="gym-split">Rest or light cardio</div><div class="gym-note">Walk, cycle — keeps metabolism active</div></div></div>
+          <div class="gym-row"><div class="gym-day-label">Thu</div><div class="sched-dot" style="background:var(--gold)"></div><div style="flex:1"><div class="gym-split">Legs + shoulders</div><div class="gym-note">Heaviest session — fuelled by lunch</div></div></div>
+          <div class="gym-row"><div class="gym-day-label">Fri</div><div class="sched-dot" style="background:var(--blue)"></div><div style="flex:1"><div class="gym-split">Chest + triceps (repeat)</div><div class="gym-note">Progressive overload focus</div></div></div>
+          <div class="gym-row"><div class="gym-day-label">Sat</div><div class="sched-dot" style="background:var(--accent)"></div><div style="flex:1"><div class="gym-split">Back + biceps or rest</div><div class="gym-note">Flex based on energy</div></div></div>
+          <div class="gym-row"><div class="gym-day-label">Sun</div><div class="sched-dot" style="background:var(--red)"></div><div style="flex:1"><div class="gym-split">Rest</div><div class="gym-note">Bourdain day — do something genuinely yours</div></div></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Plateau fix</div>
+          <div class="rule-item" style="border-color:var(--gold);background:var(--gold-dim)">
+            <div class="rule-title">Diet is your lever, not volume</div>
+            <div class="rule-body">You're already training enough. The plateau is almost entirely a nutrition problem. Hit 180g protein daily and eat in a slight deficit. The body recomposition will follow.</div>
+          </div>
+          <div class="rule-item" style="border-color:var(--blue);background:var(--blue-dim)">
+            <div class="rule-title">Progressive overload — track it</div>
+            <div class="rule-body">Add 2.5kg or 1 rep per set per week on your main lifts. No tracking = no overload = plateau. Use the notes app as a minimum.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- READING -->
+    <div id="sec-reading" class="section">
+      <div class="tab-row">
+        <button class="tab-btn active" onclick="readTab('current', this)">In progress</button>
+        <button class="tab-btn" onclick="readTab('queue', this)">Queue</button>
+        <button class="tab-btn" onclick="readTab('fiction', this)">Fiction picks</button>
+        <button class="tab-btn" onclick="readTab('skills', this)">Skills picks</button>
+        <button class="tab-btn" onclick="readTab('pages', this)">Page plan</button>
+      </div>
+
+      <div id="read-current">
+        <div class="card">
+          <div class="card-title">Currently reading</div>
+          <div class="book-row"><div class="book-spine" style="background:#3a72c4"></div><div style="flex:1"><div class="book-title">Crime and Punishment</div><div class="book-author">Dostoevsky · Fiction</div><div class="progress-bar"><div class="progress-fill" style="width:45%;background:#3a72c4"></div></div></div></div>
+          <div class="book-row"><div class="book-spine" style="background:#c49a20"></div><div style="flex:1"><div class="book-title">How Countries Go Broke</div><div class="book-author">Ray Dalio · Economics</div><div class="progress-bar"><div class="progress-fill" style="width:30%;background:#c49a20"></div></div></div></div>
+        </div>
+      </div>
+
+      <div id="read-queue" style="display:none">
+        <div class="card">
+          <div class="card-title">Owned — read in this order</div>
+          <div class="book-row"><div class="book-spine" style="background:#4a9e75"></div><div><div class="book-title">Children of Dune</div><div class="book-author">Frank Herbert · Fiction</div><span class="book-tag" style="color:var(--green);border-color:var(--green)">Queue 1</span></div></div>
+          <div class="book-row"><div class="book-spine" style="background:#7a5ab7"></div><div><div class="book-title">The Coffee Trader</div><div class="book-author">David Liss · Historical fiction</div><span class="book-tag" style="color:#9a7ad4;border-color:#7a5ab7">Queue 2</span></div></div>
+          <div class="book-row"><div class="book-spine" style="background:#c45a30"></div><div><div class="book-title">The Sovereign Debt Investor</div><div class="book-author">Andrés Velasco · Economics</div><span class="book-tag" style="color:#c47a5a;border-color:#c45a30">Queue 3</span></div></div>
+        </div>
+      </div>
+
+      <div id="read-fiction" style="display:none">
+        <div class="card">
+          <div class="card-title">Fiction that challenges — recommended</div>
+          <div class="book-row"><div class="book-spine" style="background:#3a72c4"></div><div><div class="book-title">The Brothers Karamazov</div><div class="book-author">Dostoevsky · After Crime and Punishment</div><span class="book-tag" style="color:#6a92d4;border-color:#3a72c4">Identity · morality · free will</span></div></div>
+          <div class="book-row"><div class="book-spine" style="background:#4a9e75"></div><div><div class="book-title">Stoner</div><div class="book-author">John Williams</div><span class="book-tag" style="color:var(--green);border-color:var(--green)">What it means to live deliberately</span></div></div>
+          <div class="book-row"><div class="book-spine" style="background:#9a7ad4"></div><div><div class="book-title">The Stranger</div><div class="book-author">Albert Camus · Short — 2 days</div><span class="book-tag" style="color:#b49ae4;border-color:#9a7ad4">Identity · authenticity · absurdism</span></div></div>
+          <div class="book-row"><div class="book-spine" style="background:#c49a20"></div><div><div class="book-title">Middlemarch</div><div class="book-author">George Eliot</div><span class="book-tag" style="color:#d4ba50;border-color:#c49a20">Ambition · self-knowledge · social dynamics</span></div></div>
+          <div class="book-row"><div class="book-spine" style="background:#c45a30"></div><div><div class="book-title">Blood Meridian</div><div class="book-author">Cormac McCarthy · When you're ready</div><span class="book-tag" style="color:#d47a5a;border-color:#c45a30">Violence · morality · human nature</span></div></div>
+        </div>
+      </div>
+
+      <div id="read-skills" style="display:none">
+        <div class="card">
+          <div class="card-title">Skills & intellect — recommended</div>
+          <div class="book-row"><div class="book-spine" style="background:#4a9e75"></div><div><div class="book-title">Thinking, Fast and Slow</div><div class="book-author">Kahneman · Psychology / Economics</div><span class="book-tag" style="color:var(--green);border-color:var(--green)">Decision-making · cognitive bias</span></div></div>
+          <div class="book-row"><div class="book-spine" style="background:#3a72c4"></div><div><div class="book-title">The Laws of Human Nature</div><div class="book-author">Robert Greene · Directly serves publicist work</div><span class="book-tag" style="color:#6a92d4;border-color:#3a72c4">Social intelligence · self-mastery</span></div></div>
+          <div class="book-row"><div class="book-spine" style="background:#9a7ad4"></div><div><div class="book-title">Meditations</div><div class="book-author">Marcus Aurelius · 10 pages/day, read slowly</div><span class="book-tag" style="color:#b49ae4;border-color:#9a7ad4">Discipline · Goggins-adjacent</span></div></div>
+          <div class="book-row"><div class="book-spine" style="background:#c49a20"></div><div><div class="book-title">The Art of Thinking Clearly</div><div class="book-author">Rolf Dobelli · Bite-sized chapters</div><span class="book-tag" style="color:#d4ba50;border-color:#c49a20">Reasoning · mental models</span></div></div>
+        </div>
+      </div>
+
+      <div id="read-pages" style="display:none">
+        <div class="card">
+          <div class="card-title">Reading split as pages increase</div>
+          <div class="sched-row"><div class="sched-time">30/day</div><div class="sched-dot" style="background:var(--green)"></div><div class="sched-content"><div class="sched-title">Now</div><div class="sched-sub">One sitting — morning or evening</div></div></div>
+          <div class="sched-row"><div class="sched-time">35–40</div><div class="sched-dot" style="background:var(--gold)"></div><div class="sched-content"><div class="sched-title">Days 11–20</div><div class="sched-sub">20 pages morning · 15–20 pages evening</div></div></div>
+          <div class="sched-row"><div class="sched-time">45–50</div><div class="sched-dot" style="background:var(--accent)"></div><div class="sched-content"><div class="sched-title">Days 21–30</div><div class="sched-sub">20 morning · 15 midday · 15 evening</div></div></div>
+          <div class="sched-row"><div class="sched-time">55+</div><div class="sched-dot" style="background:var(--red)"></div><div class="sched-content"><div class="sched-title">Days 31+</div><div class="sched-sub">Run fiction and non-fiction in parallel — different registers, different times</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GROCERY -->
+    <div id="sec-grocery" class="section">
+      <p class="section-subtitle">Shop once weekly — Sunday. Lidl primary, Albert Heijn for variety. Tap to check off as you shop.</p>
+      <div class="card" id="grocery-list">
+        <div class="g-section-title">Protein</div>
+        <div class="g-row" onclick="toggleGrocery(this)"><div class="g-check"></div><span class="g-name">Chicken breast (1kg)</span><span class="g-store">Lidl</span></div>
+        <div class="g-row" onclick="toggleGrocery(this)"><div class="g-check"></div><span class="g-name">Salmon fillets (4 portions)</span><span class="g-store">Lidl</span></div>
+        <div class="g-row" onclick="toggleGrocery(this)"><div class="g-check"></div><span class="g-name">Canned tuna (4 tins)</span><span class="g-store">Lidl</span></div>
+        <div class="g-row" onclick="toggleGrocery(this)"><div class="g-check"></div><span class="g-name">Eggs (12)</span><span class="g-store">Lidl</span></div>
+        <div class="g-row" onclick="toggleGrocery(this)"><div class="g-check"></div><span class="g-name">Greek yogurt (500g)</span><span class="g-store">Lidl</span></div>
+        <div class="g-row" onclick="toggleGrocery(this)"><div class="g-check"></div><span class="g-name">Cottage cheese (250g)</span><span class="g-store">Lidl</span></div>
+        <div class="g-row" onclick="toggleGrocery(this)"><div class="g-check"></div><span class="g-name">Mixed nuts (200g)</span><span class="g-store">Lidl</span></div>
+        <div class="g-section-title">Carbs & grains</div>
+        <div class="g-row" onclick="toggleGrocery(this)"><div class="g-check"></div><span class="g-name">Oats (1kg)</span><span class="g-store">Lidl</span></div>
+        <div class="g-row" onclick="toggleGrocery(this)"><div class="g-check"></div><span class="g-name">Rice (1kg)</span><span class="g-store">Lidl</span></div>
+        <div class="g-row" onclick="toggleGrocery(this)"><div class="g-check"></div><span class="g-name">Sweet potatoes (1kg)</span><span class="g-store">Lidl</span></div>
+        <div class="g-row" onclick="toggleGrocery(this)"><div class="g-check"></div><span class="g-name">Bananas (bunch)</span><span class="g-store">Lidl</span></div>
+        <div class="g-row" onclick="toggleGrocery(this)"><div class="g-check"></div><span class="g-name">Wholegrain bread</span><span class="g-store">Lidl</span></div>
+        <div class="g-section-title">Vegetables</div>
+        <div class="g-row" onclick="toggleGrocery(this)"><div class="g-check"></div><span class="g-name">Spinach (bag)</span><span class="g-store">Lidl</span></div>
+        <div class="g-row" onclick="toggleGrocery(this)"><div class="g-check"></div><span class="g-name">Broccoli</span><span class="g-store">Lidl</span></div>
+        <div class="g-row" onclick="toggleGrocery(this)"><div class="g-check"></div><span class="g-name">Bell peppers (3)</span><span class="g-store">Lidl</span></div>
+        <div class="g-row" onclick="toggleGrocery(this)"><div class="g-check"></div><span class="g-name">Frozen mixed veg (bag)</span><span class="g-store">Lidl</span></div>
+        <div class="g-row" onclick="toggleGrocery(this)"><div class="g-check"></div><span class="g-name">Cherry tomatoes</span><span class="g-store">Lidl</span></div>
+        <div class="g-section-title">Fats & flavour</div>
+        <div class="g-row" onclick="toggleGrocery(this)"><div class="g-check"></div><span class="g-name">Olive oil</span><span class="g-store">Lidl</span></div>
+        <div class="g-row" onclick="toggleGrocery(this)"><div class="g-check"></div><span class="g-name">Garlic (bulb)</span><span class="g-store">Lidl</span></div>
+        <div class="g-row" onclick="toggleGrocery(this)"><div class="g-check"></div><span class="g-name">Soy sauce</span><span class="g-store">Lidl</span></div>
+        <div class="g-row" onclick="toggleGrocery(this)"><div class="g-check"></div><span class="g-name">Mixed herbs / spices</span><span class="g-store">Lidl</span></div>
+        <div class="g-row" onclick="toggleGrocery(this)"><div class="g-check"></div><span class="g-name">Lemons (2)</span><span class="g-store">Lidl</span></div>
+        <div class="g-section-title">Albert Heijn — variety</div>
+        <div class="g-row" onclick="toggleGrocery(this)"><div class="g-check"></div><span class="g-name">Smoked mackerel</span><span class="g-store">AH</span></div>
+        <div class="g-row" onclick="toggleGrocery(this)"><div class="g-check"></div><span class="g-name">Skyr (higher protein than yogurt)</span><span class="g-store">AH</span></div>
+        <div class="g-row" onclick="toggleGrocery(this)"><div class="g-check"></div><span class="g-name">Protein yogurt drinks</span><span class="g-store">AH</span></div>
+        <div class="g-row" onclick="toggleGrocery(this)"><div class="g-check"></div><span class="g-name">Pre-marinated chicken / fish</span><span class="g-store">AH</span></div>
+      </div>
+      <button onclick="resetGrocery()" style="width:100%;padding:10px;background:transparent;border:0.5px solid var(--border2);border-radius:var(--radius-sm);color:var(--text3);font-family:var(--mono);font-size:12px;cursor:pointer;margin-bottom:16px;">Reset list for new shop</button>
+    </div>
+
+    <!-- GUARDRAILS -->
+    <div id="sec-rules" class="section">
+      <div class="card">
+        <div class="card-title">Coach guardrails</div>
+        <div class="rule-item" style="border-color:var(--green);background:var(--green-dim)"><div class="rule-title">The 10-minute rule</div><div class="rule-body">Commit only to 10 minutes on the main task. No full commitment required — just contact. Momentum takes over after that.</div></div>
+        <div class="rule-item" style="border-color:var(--blue);background:var(--blue-dim)"><div class="rule-title">The on-ramp rule</div><div class="rule-body">Every session ends by setting up the next one. Open the doc. Write "next step is —". Tomorrow starts already in motion.</div></div>
+        <div class="rule-item" style="border-color:var(--accent);background:rgba(200,184,154,0.08)"><div class="rule-title">The 24-hour re-entry rule</div><div class="rule-body">Never more than 24 hours from being back on track. No restarting Monday. No waiting for a clean week. The next day is always re-entry.</div></div>
+        <div class="rule-item" style="border-color:var(--gold);background:var(--gold-dim)"><div class="rule-title">The Goggins diagnostic</div><div class="rule-body">When the inner critic starts — interrupt it. One question: what specifically made that hard? One sentence. Address that thing. Move on.</div></div>
+        <div class="rule-item" style="border-color:var(--red);background:var(--red-dim)"><div class="rule-title">The procrastination interrupt</div><div class="rule-body">When you catch yourself doing things around the task — name it: "This is the avoidance. The task is that way." Then turn toward it.</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Publicist guardrails</div>
+        <div class="rule-item" style="border-color:var(--green);background:var(--green-dim)"><div class="rule-title">One fingerprint per situation</div><div class="rule-body">One genuine opinion, one redirect from your own world, or one early exit. Not all three. Consistency over volume.</div></div>
+        <div class="rule-item" style="border-color:var(--blue);background:var(--blue-dim)"><div class="rule-title">Cut reactive smiling by half</div><div class="rule-body">Replace the reflex smile with a slow nod and held eye contact. Make your warmth earn its place.</div></div>
+        <div class="rule-item" style="border-color:var(--accent);background:rgba(200,184,154,0.08)"><div class="rule-title">Speak to one person in groups</div><div class="rule-body">Never address the group diffusely. Pick one person. You create a 1-on-1 inside the group — and you control it.</div></div>
+        <div class="rule-item" style="border-color:var(--gold);background:var(--gold-dim)"><div class="rule-title">Exit conversations first</div><div class="rule-body">Leave while the energy is still good. People remember the last moment — make it yours.</div></div>
+      </div>
+    </div>
+
+    <!-- WEEKLY AUDIT -->
+    <div id="sec-audit" class="section">
+      <p class="section-subtitle">Every Sunday. 5 minutes. The most important tab in the system.</p>
+      <div class="card">
+        <div class="card-title">Sunday audit</div>
+        <div class="audit-q">
+          <div class="audit-label">Question 1</div>
+          <div class="audit-prompt">Did I honor my non-negotiables this week? If not — what specifically got in the way?</div>
+          <textarea class="audit-input" rows="3" placeholder="Be honest. One sentence is enough." id="aq1"></textarea>
+        </div>
+        <div class="audit-q">
+          <div class="audit-label">Question 2 — Bourdain check</div>
+          <div class="audit-prompt">Did I do one thing this week that was genuinely, personally mine?</div>
+          <textarea class="audit-input" rows="3" placeholder="Not productive. Not impressive. Just yours." id="aq2"></textarea>
+        </div>
+        <div class="audit-q">
+          <div class="audit-label">Question 3 — most important</div>
+          <div class="audit-prompt">What is the one thing I avoided this week that I'm carrying into next week?</div>
+          <textarea class="audit-input" rows="3" placeholder="Name it. This is the whole game." id="aq3"></textarea>
+        </div>
+        <div class="audit-q">
+          <div class="audit-label">Question 4 — publicist</div>
+          <div class="audit-prompt">Did I leave at least one social fingerprint this week?</div>
+          <textarea class="audit-input" rows="2" placeholder="Yes or no. If no — what pulled you back into mirroring?" id="aq4"></textarea>
+        </div>
+        <button onclick="saveAudit()" style="width:100%;margin-top:14px;padding:12px;background:var(--accent);border:none;border-radius:var(--radius-sm);color:var(--bg);font-family:var(--mono);font-size:13px;cursor:pointer;">Save this week's audit</button>
+      </div>
+      <div id="audit-history"></div>
+    </div>
+
+  </div><!-- end content -->
+
+  <nav id="nav">
+    <button class="nav-item active" onclick="showSection('tracker', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      <span>Today</span>
+    </button>
+    <button class="nav-item" onclick="showSection('schedule', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><polyline points="12,7 12,12 15,15"/></svg>
+      <span>Schedule</span>
+    </button>
+    <button class="nav-item" onclick="showSection('body', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+      <span>Body</span>
+    </button>
+    <button class="nav-item" onclick="showSection('reading', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      <span>Reading</span>
+    </button>
+    <button class="nav-item" onclick="showSection('grocery', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+      <span>Shop</span>
+    </button>
+    <button class="nav-item" onclick="showSection('rules', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      <span>Rules</span>
+    </button>
+    <button class="nav-item" onclick="showSection('audit', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      <span>Audit</span>
+    </button>
+  </nav>
+</div>
+
+<script>
+const SK = 'thesystem_v2';
+let data = { days:{}, checks:{}, streak:0, audits:[], groceries:{} };
+try { const s = localStorage.getItem(SK); if(s) data = {...data, ...JSON.parse(s)}; } catch(e){}
+
+function save() { try { localStorage.setItem(SK, JSON.stringify(data)); } catch(e){} }
+
+// Header date
+const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const now = new Date();
+document.getElementById('header-date').textContent = days[now.getDay()] + ' · ' + now.getDate() + ' ' + months[now.getMonth()];
+
+// Nav
+function showSection(id, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('sec-' + id).classList.add('active');
+  btn.classList.add('active');
+  document.getElementById('content').scrollTop = 0;
+}
+
+// Tracker
+function buildTracker() {
+  const grid = document.getElementById('tracker-grid');
+  grid.innerHTML = '';
+  let streak = 0, counting = true;
+  for(let i=1;i<=75;i++) {
+    if(counting) {
+      if(data.days[i]==='done') streak++;
+      else counting = false;
+    }
+  }
+  data.streak = streak;
+  const pages = 30 + Math.floor(streak/10)*5;
+  const nextInc = streak%10===0 && streak>0 ? 10 : 10-(streak%10);
+  document.getElementById('m-streak').textContent = streak;
+  document.getElementById('m-pages').textContent = pages;
+  document.getElementById('m-next').textContent = nextInc;
+  document.getElementById('streak-badge').textContent = streak + ' day streak';
+
+  const today = streak + 1;
+  for(let i=1;i<=75;i++) {
+    const box = document.createElement('div');
+    box.className = 'day-box';
+    box.textContent = i;
+    if(data.days[i]==='done') box.classList.add('done');
+    else if(data.days[i]==='missed') box.classList.add('missed');
+    if(i===today) box.classList.add('today');
+    box.onclick = () => {
+      if(!data.days[i]) data.days[i]='done';
+      else if(data.days[i]==='done') data.days[i]='missed';
+      else delete data.days[i];
+      save(); buildTracker();
+    };
+    grid.appendChild(box);
+  }
+  save();
+}
+
+// Checklist
+function toggleCheck(row) {
+  const box = row.querySelector('.check-box');
+  const txt = row.querySelector('.check-text');
+  box.classList.toggle('checked');
+  txt.classList.toggle('done');
+  if(box.classList.contains('checked')) box.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3" stroke="white" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  else box.innerHTML = '';
+}
+
+// Body tabs
+function bodyTab(id, btn) {
+  document.querySelectorAll('#sec-body [id^="body-"]').forEach(el => el.style.display='none');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('body-'+id).style.display='block';
+  btn.classList.add('active');
+}
+
+// Reading tabs
+function readTab(id, btn) {
+  document.querySelectorAll('#sec-reading [id^="read-"]').forEach(el => el.style.display='none');
+  document.querySelectorAll('#sec-reading .tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('read-'+id).style.display='block';
+  btn.classList.add('active');
+}
+
+// Grocery
+function toggleGrocery(row) {
+  const check = row.querySelector('.g-check');
+  const name = row.querySelector('.g-name');
+  check.classList.toggle('checked');
+  if(check.classList.contains('checked')) {
+    check.innerHTML = '<svg width="11" height="11" viewBox="0 0 11 11"><polyline points="1.5,5.5 4.5,8.5 9.5,2.5" stroke="white" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    name.classList.add('done');
+  } else {
+    check.innerHTML = '';
+    name.classList.remove('done');
+  }
+}
+function resetGrocery() {
+  document.querySelectorAll('.g-check').forEach(c => { c.classList.remove('checked'); c.innerHTML=''; });
+  document.querySelectorAll('.g-name').forEach(n => n.classList.remove('done'));
+}
+
+// Audit
+function saveAudit() {
+  const entry = {
+    date: new Date().toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'}),
+    q1: document.getElementById('aq1').value,
+    q2: document.getElementById('aq2').value,
+    q3: document.getElementById('aq3').value,
+    q4: document.getElementById('aq4').value
+  };
+  if(!data.audits) data.audits=[];
+  data.audits.unshift(entry);
+  if(data.audits.length > 12) data.audits = data.audits.slice(0,12);
+  save();
+  ['aq1','aq2','aq3','aq4'].forEach(id => document.getElementById(id).value='');
+  renderAuditHistory();
+  const btn = document.querySelector('#sec-audit button');
+  btn.textContent = 'Saved ✓';
+  setTimeout(()=>btn.textContent='Save this week\'s audit',2000);
+}
+
+function renderAuditHistory() {
+  const container = document.getElementById('audit-history');
+  if(!data.audits || data.audits.length===0) { container.innerHTML=''; return; }
+  let html = '<div class="card"><div class="card-title">Past audits</div>';
+  data.audits.forEach((a,i) => {
+    html += `<div style="padding:10px 0;border-bottom:0.5px solid var(--border);${i===data.audits.length-1?'border-bottom:none':''}">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">${a.date}</div>
+      ${a.q3 ? `<div style="font-size:12px;color:var(--accent);margin-bottom:2px;">Avoidance: ${a.q3}</div>` : ''}
+      ${a.q2 ? `<div style="font-size:12px;color:var(--text2);">Bourdain: ${a.q2}</div>` : ''}
+    </div>`;
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// Schedule
+let schedOffset = 0;
+let selectedColor = 'var(--accent)';
+const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function schedDateKey(offset) {
+  const d = new Date(); d.setDate(d.getDate() + offset);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+function renderSched() {
+  const d = new Date(); d.setDate(d.getDate() + schedOffset);
+  const key = schedDateKey(schedOffset);
+  document.getElementById('sched-day-label').textContent = schedOffset===0?'Today':schedOffset===1?'Tomorrow':schedOffset===-1?'Yesterday':dayNames[d.getDay()];
+  document.getElementById('sched-date-label').textContent = dayNames[d.getDay()] + ' · ' + d.getDate() + ' ' + monthNames[d.getMonth()];
+  const blocks = (data.schedBlocks && data.schedBlocks[key]) || [];
+  const container = document.getElementById('sched-blocks');
+  if(blocks.length===0) {
+    container.innerHTML = '<div style="font-size:13px;color:var(--text3);padding:8px 0;">No custom blocks for this day. Add one below or rely on the fixed blocks.</div>';
+    return;
+  }
+  const sorted = [...blocks].sort((a,b)=>a.start.localeCompare(b.start));
+  container.innerHTML = sorted.map((b,i) => `
+    <div class="sched-row" style="position:relative;">
+      <div class="sched-time">${b.start}</div>
+      <div class="sched-dot" style="background:${b.color}"></div>
+      <div class="sched-content" style="flex:1;">
+        <div class="sched-title">${b.title}</div>
+        ${b.note?`<div class="sched-sub">${b.note}</div>`:''}
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;">${b.start} – ${b.end}</div>
+      </div>
+      <button onclick="deleteBlock('${key}',${i})" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:4px 8px;">×</button>
+    </div>`).join('');
+}
+
+function schedNav(dir) {
+  schedOffset += dir;
+  renderSched();
+  document.getElementById('add-block-form').style.display='none';
+}
+
+function showAddBlock() {
+  const f = document.getElementById('add-block-form');
+  f.style.display = f.style.display==='none'?'block':'none';
+}
+
+function pickColor(el) {
+  document.querySelectorAll('.color-pick').forEach(c=>c.style.border='none');
+  el.style.border='2px solid white';
+  selectedColor = el.dataset.color;
+}
+
+function saveBlock() {
+  const title = document.getElementById('nb-title').value.trim();
+  if(!title) { document.getElementById('nb-title').style.borderColor='var(--red)'; return; }
+  const key = schedDateKey(schedOffset);
+  if(!data.schedBlocks) data.schedBlocks={};
+  if(!data.schedBlocks[key]) data.schedBlocks[key]=[];
+  data.schedBlocks[key].push({
+    start: document.getElementById('nb-start').value,
+    end: document.getElementById('nb-end').value,
+    title, note: document.getElementById('nb-note').value.trim(),
+    color: selectedColor
+  });
+  save();
+  document.getElementById('nb-title').value='';
+  document.getElementById('nb-note').value='';
+  document.getElementById('add-block-form').style.display='none';
+  renderSched();
+}
+
+function deleteBlock(key, idx) {
+  data.schedBlocks[key].splice(idx,1);
+  save(); renderSched();
+}
+
+// Init
+buildTracker();
+renderAuditHistory();
+renderSched();
+
+// Service worker
+if('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
